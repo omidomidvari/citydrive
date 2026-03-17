@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>3D City Drive</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #111; }
+        #ui { position: absolute; top: 10px; left: 10px; color: white; font-family: sans-serif; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div id="ui">WASD to Drive</div>
+    <script src="https://cloudflare.com"></script>
+    <script>
+        // 1. SCENE SETUP
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x111122);
+        scene.fog = new THREE.Fog(0x111122, 10, 100);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // 2. LIGHTS
+        const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambient);
+        const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+        sun.position.set(10, 20, 10);
+        scene.add(sun);
+
+        // 3. THE CAR
+        const car = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 2.2), new THREE.MeshPhongMaterial({ color: 0xff0000 }));
+        body.position.y = 0.6;
+        car.add(body);
+
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(1, 0.5, 1), new THREE.MeshPhongMaterial({ color: 0x333333 }));
+        cabin.position.set(0, 1.1, -0.2);
+        car.add(cabin);
+
+        // Wheels
+        const wheelGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.3, 12);
+        const wheelMat = new THREE.MeshPhongMaterial({ color: 0x111111 });
+        [[0.7,0.3,0.7], [-0.7,0.3,0.7], [0.7,0.3,-0.7], [-0.7,0.3,-0.7]].forEach(pos => {
+            const w = new THREE.Mesh(wheelGeo, wheelMat);
+            w.rotation.z = Math.PI/2;
+            w.position.set(...pos);
+            car.add(w);
+        });
+        scene.add(car);
+
+        // 4. THE CITY
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshLambertMaterial({ color: 0x222222 }));
+        ground.rotation.x = -Math.PI/2;
+        scene.add(ground);
+
+        for(let i=0; i<150; i++) {
+            const h = 5 + Math.random() * 15;
+            const b = new THREE.Mesh(new THREE.BoxGeometry(4, h, 4), new THREE.MeshPhongMaterial({ color: 0x444466 }));
+            b.position.set((Math.random()-0.5)*200, h/2, (Math.random()-0.5)*200);
+            if(Math.abs(b.position.x) < 5) b.position.x += 10; // Keep road clear
+            scene.add(b);
+        }
+
+        // 5. INPUT & MOVEMENT
+        const keys = {};
+        window.addEventListener('keydown', e => keys[e.code] = true);
+        window.addEventListener('keyup', e => keys[e.code] = false);
+
+        let speed = 0, turn = 0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if(keys['KeyW']) speed += 0.01;
+            if(keys['KeyS']) speed -= 0.01;
+            if(keys['KeyA']) turn += 0.01;
+            if(keys['KeyD']) turn -= 0.01;
+
+            speed *= 0.95; turn *= 0.9;
+            car.rotation.y += turn * speed;
+            car.translateZ(speed);
+
+            // Chase Camera Logic
+            const offset = new THREE.Vector3(0, 4, -8);
+            offset.applyQuaternion(car.quaternion);
+            offset.add(car.position);
+            
+            camera.position.lerp(offset, 0.1);
+            camera.lookAt(car.position);
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
